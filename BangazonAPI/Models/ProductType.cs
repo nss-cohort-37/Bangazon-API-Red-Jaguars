@@ -5,10 +5,9 @@ using System.Threading.Tasks;
 
 namespace BangazonAPI.Models
 {
-    public class PaymentTypes
+    public class ProductType
     {
-        public int Id { get; set; }
+        public  int Id { get; set; }
         public string Name { get; set; }
-        public bool Active { get; set; }
     }
 }
