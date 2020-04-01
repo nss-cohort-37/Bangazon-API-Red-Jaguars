@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -15,13 +15,10 @@ namespace BangazonAPI.Controllers
     [ApiController]
     public class PaymentTypesController : ControllerBase
     {
-        [Route("api/[controller]")]
-        [ApiController]
-        public class PaymentTypeController : Controller
-        {
+      
             private readonly IConfiguration _config;
 
-            public PaymentTypeController(IConfiguration config)
+            public PaymentTypesController(IConfiguration config)
             {
                 _config = config;
             }
@@ -43,7 +40,7 @@ namespace BangazonAPI.Controllers
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = @"SELECT p.Id, p.Name, p.Active
-                    FROM PaymentTypes p";
+                    FROM PaymentType p";
 
                         SqlDataReader reader = cmd.ExecuteReader();
                         List<PaymentTypes> paymentTypes = new List<PaymentTypes>();
@@ -54,12 +51,9 @@ namespace BangazonAPI.Controllers
                             {
                                 Id = reader.GetInt32(reader.GetOrdinal("Id")),
                                 Name = reader.GetString(reader.GetOrdinal("Name")),
-                                Active = reader.GetString(reader.GetOrdinal("Active")),
+                                Active = reader.GetBoolean(reader.GetOrdinal("Active")),
                             };
-                            if (!reader.IsDBNull(reader.GetOrdinal("Notes")))
-                            {
-                                paymentType.Notes = reader.GetString(reader.GetOrdinal("Notes"));
-                            }
+
                             paymentTypes.Add(paymentType);
                         }
                         reader.Close();
@@ -69,7 +63,7 @@ namespace BangazonAPI.Controllers
                 }
             }
 
-            [HttpGet("{id}", Name = "GetPaymentTypess")]
+            [HttpGet("{id}", Name = "GetPaymentTypes")]
             public async Task<IActionResult> Get([FromRoute] int id)
             {
                 using (SqlConnection conn = Connection)
@@ -77,16 +71,14 @@ namespace BangazonAPI.Controllers
                     conn.Open();
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"
-                        SELECT 
-                            d.Id, d.Name, d.Breed, d.OwnerId, d.Notes, o.Name AS OwnerName, o.NeighborhoodId, o.Address, o.Phone, d.Notes 
-                        FROM PaymentTypes d
-                        LEFT JOIN Owner o ON d.OwnerId = o.Id
-                        WHERE d.Id = @id";
+                        cmd.CommandText = @"SELECT p.Id, p.Name, p.Active
+                    FROM PaymentType p
+                        WHERE p.Id = @id";
                         cmd.Parameters.Add(new SqlParameter("@id", id));
                         SqlDataReader reader = cmd.ExecuteReader();
 
                         PaymentTypes paymentType = null;
+
 
                         if (reader.Read())
                         {
@@ -94,21 +86,9 @@ namespace BangazonAPI.Controllers
                             {
                                 Id = reader.GetInt32(reader.GetOrdinal("Id")),
                                 Name = reader.GetString(reader.GetOrdinal("Name")),
-                                Breed = reader.GetString(reader.GetOrdinal("Breed")),
-                                OwnerId = reader.GetInt32(reader.GetOrdinal("OwnerId")),
-                                Owner = new Owner
-                                {
-                                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                                    Name = reader.GetString(reader.GetOrdinal("OwnerName")),
-                                    Address = reader.GetString(reader.GetOrdinal("Address")),
-                                    NeighborhoodId = reader.GetInt32(reader.GetOrdinal("NeighborhoodId")),
-                                    Phone = reader.GetString(reader.GetOrdinal("Phone"))
-                                }
+                                Active = reader.GetBoolean(reader.GetOrdinal("Active")),
                             };
-                            if (!reader.IsDBNull(reader.GetOrdinal("Notes")))
-                            {
-                                paymentType.Notes = reader.GetString(reader.GetOrdinal("Notes"));
-                            }
+
                         }
                         reader.Close();
 
@@ -125,18 +105,17 @@ namespace BangazonAPI.Controllers
                     conn.Open();
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"INSERT INTO PaymentTypes (Name, Breed, OwnerId, Notes)
+                        cmd.CommandText = @"INSERT INTO PaymentType (Name, Active)
                                         OUTPUT INSERTED.Id
-                                        VALUES (@name, @breed, @ownerId, @notes)";
-                        cmd.Parameters.Add(new SqlParameter("@name", paymentType.Name));
-                        cmd.Parameters.Add(new SqlParameter("@breed", paymentType.Breed));
-                        cmd.Parameters.Add(new SqlParameter("@ownerId", paymentType.OwnerId));
-                        cmd.Parameters.Add(new SqlParameter("@notes", (object)paymentType.Notes ?? DBNull.Value));
+                                        VALUES (@Name, @Active)";
+                        cmd.Parameters.Add(new SqlParameter("@Name", paymentType.Name));
+                        cmd.Parameters.Add(new SqlParameter("@Active", paymentType.Active));
+
 
 
                         int newId = (int)cmd.ExecuteScalar();
                         paymentType.Id = newId;
-                        return CreatedAtRoute("GetPaymentTypess", new { id = newId }, paymentType);
+                        return CreatedAtRoute("GetPaymentTypes", new { id = newId }, paymentType);
                     }
                 }
             }
@@ -151,16 +130,13 @@ namespace BangazonAPI.Controllers
                         conn.Open();
                         using (SqlCommand cmd = conn.CreateCommand())
                         {
-                            cmd.CommandText = @"UPDATE PaymentTypes
-                                            SET Name = @name,
-                                                Breed = @breed,
-                                                OwnerId = @ownerId,
-                                                Notes = @notes
+                            cmd.CommandText = @"UPDATE PaymentType
+                                            SET Name = @Name,
+                                                Active = @Active
+                                                
                                             WHERE Id = @id";
-                            cmd.Parameters.Add(new SqlParameter("@name", paymentType.Name));
-                            cmd.Parameters.Add(new SqlParameter("@breed", paymentType.Breed));
-                            cmd.Parameters.Add(new SqlParameter("@ownerId", paymentType.OwnerId));
-                            cmd.Parameters.Add(new SqlParameter("@notes", (object)paymentType.Notes ?? DBNull.Value));
+                            cmd.Parameters.Add(new SqlParameter("@Name", paymentType.Name));
+                            cmd.Parameters.Add(new SqlParameter("@Active", paymentType.Active));
                             cmd.Parameters.Add(new SqlParameter("@id", id));
 
                             int rowsAffected = cmd.ExecuteNonQuery();
@@ -195,7 +171,7 @@ namespace BangazonAPI.Controllers
                         conn.Open();
                         using (SqlCommand cmd = conn.CreateCommand())
                         {
-                            cmd.CommandText = @"DELETE FROM PaymentTypes WHERE Id = @id";
+                            cmd.CommandText = @"DELETE FROM PaymentType WHERE Id = @id";
                             cmd.Parameters.Add(new SqlParameter("@id", id));
 
                             int rowsAffected = cmd.ExecuteNonQuery();
@@ -229,8 +205,8 @@ namespace BangazonAPI.Controllers
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = @"
-                        SELECT Id, Name, Breed, OwnerId, Notes
-                        FROM PaymentTypes
+                        SELECT Id, Name, Active
+                        FROM PaymentType
                         WHERE Id = @id";
                         cmd.Parameters.Add(new SqlParameter("@id", id));
 
@@ -240,4 +216,4 @@ namespace BangazonAPI.Controllers
                 }
             }
         }
-}
+    }
