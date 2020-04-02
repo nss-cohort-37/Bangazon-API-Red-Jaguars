@@ -57,7 +57,7 @@ namespace BangazonAPI.Controllers
                         order.Products.Add(new Product()
                         {
                             Id = reader.GetInt32(reader.GetOrdinal("ProductId")),
-                            Price = reader.GetDouble(reader.GetOrdinal("Price")),
+                            Price = reader.GetDecimal(reader.GetOrdinal("Price")),
                             Title = reader.GetString(reader.GetOrdinal("Title")),
                             Description = reader.GetString(reader.GetOrdinal("Description")),
                             DateAdded = reader.GetDateTime(reader.GetOrdinal("DateAdded")),
@@ -87,30 +87,51 @@ namespace BangazonAPI.Controllers
                 conn.Open();
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = @"SELECT Id, CustomerId, UserPaymentTypeId
-                        FROM [Order] 
-                        WHERE Id = @Id";
+                    cmd.CommandText = @"SELECT o.Id AS OrderId, o.CustomerId, o.UserPaymentTypeId,
+                        p.ProductTypeId, p.CustomerId, p.Price, p.Description, p.Title, p.DateAdded, p.Id AS ProductId
+                        FROM [Order] o
+                        LEFT JOIN OrderProduct op ON op.OrderId = o.Id 
+                        LEFT JOIN Product p ON p.Id = op.ProductId
+                    WHERE OrderId = @Id";
                     cmd.Parameters.Add(new SqlParameter("@id", id));
                     SqlDataReader reader = cmd.ExecuteReader();
 
                     Order order = null;
 
-                    if (reader.Read())
+                    while (reader.Read())
                     {
-                        order = new Order
+                        if (order == null)
                         {
-                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                            CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId")),
-                            //UserPaymentTypeId = reader.GetInt32(reader.GetOrdinal("UserPaymentTypeId"))
+                            order = new Order
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("OrderId")),
+                                CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId")),
+                                //UserPaymentTypeId = reader.GetInt32(reader.GetOrdinal("UserPaymentTypeId"))
+                                Products = new List<Product>()
+                            };
+                            if (!reader.IsDBNull(reader.GetOrdinal("UserPaymentTypeId")))
+                            {
+                                order.UserPaymentTypeId = reader.GetInt32(reader.GetOrdinal("UserPaymentTypeId"));
+                            }
+                        }
+
+                       
+                        order.Products.Add(new Product()
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                            Price = reader.GetDecimal(reader.GetOrdinal("Price")),
+                            Title = reader.GetString(reader.GetOrdinal("Title")),
+                            Description = reader.GetString(reader.GetOrdinal("Description")),
+                            DateAdded = reader.GetDateTime(reader.GetOrdinal("DateAdded")),
+                            ProductTypeId = reader.GetInt32(reader.GetOrdinal("ProductTypeId")),
+                            CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId"))
+                        
 
 
-                        };
+                        });
                         
                     }
-                    if (!reader.IsDBNull(reader.GetOrdinal("UserPaymentTypeId")))
-                    {
-                        order.UserPaymentTypeId = reader.GetInt32(reader.GetOrdinal("UserPaymentTypeId"));
-                    }
+                    
                     reader.Close();
 
                     return Ok(order);
