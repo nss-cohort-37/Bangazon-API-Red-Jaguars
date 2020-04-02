@@ -40,22 +40,30 @@ namespace BangazonAPI.Controllers
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = @"SELECT p.Id, p.Name, p.Active
-                    FROM PaymentType p";
+                        FROM PaymentType p";
 
                         SqlDataReader reader = cmd.ExecuteReader();
                         List<PaymentTypes> paymentTypes = new List<PaymentTypes>();
 
-                        while (reader.Read())
-                        {
-                            PaymentTypes paymentType = new PaymentTypes
-                            {
-                                Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                                Name = reader.GetString(reader.GetOrdinal("Name")),
-                                Active = reader.GetBoolean(reader.GetOrdinal("Active")),
-                            };
+                        
 
-                            paymentTypes.Add(paymentType);
-                        }
+                            while (reader.Read())
+                            {
+                        
+                                PaymentTypes paymentType = new PaymentTypes
+                                {
+                                    Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                                    Name = reader.GetString(reader.GetOrdinal("Name")),
+                                    Active = reader.GetBoolean(reader.GetOrdinal("Active")),
+                                };
+                                if (paymentType.Active == true)
+                                {
+
+                                    paymentTypes.Add(paymentType);
+                                }
+                            }
+
+                        
                         reader.Close();
 
                         return Ok(paymentTypes);
@@ -162,7 +170,7 @@ namespace BangazonAPI.Controllers
             }
 
             [HttpDelete("{id}")]
-            public async Task<IActionResult> Delete([FromRoute] int id)
+            public async Task<IActionResult> Delete([FromRoute] int id, PaymentTypes paymentType)
             {
                 try
                 {
@@ -171,10 +179,15 @@ namespace BangazonAPI.Controllers
                         conn.Open();
                         using (SqlCommand cmd = conn.CreateCommand())
                         {
-                            cmd.CommandText = @"DELETE FROM PaymentType WHERE Id = @id";
-                            cmd.Parameters.Add(new SqlParameter("@id", id));
+                        cmd.CommandText = @"UPDATE PaymentType
+                                            SET 
+                                            Active = @Active
+    
+                                            WHERE Id = @id";
+                        cmd.Parameters.Add(new SqlParameter("@Active", false));
+                        cmd.Parameters.Add(new SqlParameter("@id", id));
 
-                            int rowsAffected = cmd.ExecuteNonQuery();
+                        int rowsAffected = cmd.ExecuteNonQuery();
                             if (rowsAffected > 0)
                             {
                                 return new StatusCodeResult(StatusCodes.Status204NoContent);
