@@ -38,8 +38,8 @@ namespace BangazonAPI.Controllers
                     conn.Open();
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"SELECT p.Id, p.ProductTypeId, p.Price, p.Title, p.Description, p.CustomerId p.DateAdded
-                        FROM Product p";
+                        cmd.CommandText = @"SELECT Id, ProductTypeId, Price, Title, Description, CustomerId, DateAdded
+                        FROM Product ";
                         SqlDataReader reader = cmd.ExecuteReader();
                         List<Product> products = new List<Product>();
 
@@ -48,7 +48,7 @@ namespace BangazonAPI.Controllers
                         Product product = new Product
                         {
                             Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                            Price = reader.GetDouble(reader.GetOrdinal("Price")),
+                            Price = reader.GetDecimal(reader.GetOrdinal("Price")),
                             Title = reader.GetString(reader.GetOrdinal("Title")),
                             Description = reader.GetString(reader.GetOrdinal("Description")),
                             DateAdded = reader.GetDateTime(reader.GetOrdinal("DateAdded")),
@@ -74,8 +74,9 @@ namespace BangazonAPI.Controllers
                     conn.Open();
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"SELECT p.Id, p.ProductTypeId, p.Price, p.Title, p.Description, p.CustomerId p.DateAdded
-                        FROM Product p";
+                        cmd.CommandText = @"SELECT Id, ProductTypeId, Price, Title, Description, CustomerId, DateAdded
+                        FROM Product
+                        WHERE Id =@id";
                     cmd.Parameters.Add(new SqlParameter("@id", id));
                         SqlDataReader reader = cmd.ExecuteReader();
 
@@ -86,7 +87,7 @@ namespace BangazonAPI.Controllers
                             product = new Product
                             {
                                 Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                                Price = reader.GetDouble(reader.GetOrdinal("Price")),
+                                Price = reader.GetDecimal(reader.GetOrdinal("Price")),
                                 Title = reader.GetString(reader.GetOrdinal("Title")),
                                 Description = reader.GetString(reader.GetOrdinal("Description")),
                                 DateAdded = reader.GetDateTime(reader.GetOrdinal("DateAdded")),
@@ -141,9 +142,9 @@ namespace BangazonAPI.Controllers
                             cmd.CommandText = @"UPDATE Product
                                             SET Title = @title,
                                                 Description = @description,
-                                                Price = @price
-                                                DateAdded=@dateAdded
-                                                CustomerId=@customerId
+                                                Price = @price,
+                                                DateAdded=@dateAdded,
+                                                CustomerId=@customerId,
                                                 ProductTypeId=@productTypeId
                                                
                                             WHERE Id = @id";
@@ -152,6 +153,8 @@ namespace BangazonAPI.Controllers
                             cmd.Parameters.Add(new SqlParameter("@price", product.Price));
                             cmd.Parameters.Add(new SqlParameter("@customerId", product.CustomerId));
                             cmd.Parameters.Add(new SqlParameter("@productTypeId", product.ProductTypeId));
+                            cmd.Parameters.Add(new SqlParameter("@dateAdded", product.DateAdded));
+
 
 
 

@@ -70,7 +70,8 @@ namespace BangazonAPI.Controllers
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = @"SELECT Id, Name
-                        FROM ProductType";
+                        FROM ProductType
+                        WHERE Id=@id";
                         cmd.Parameters.Add(new SqlParameter("@id", id));
                         SqlDataReader reader = cmd.ExecuteReader();
 
@@ -125,7 +126,7 @@ namespace BangazonAPI.Controllers
                         using (SqlCommand cmd = conn.CreateCommand())
                         {
                             cmd.CommandText = @"UPDATE ProductType
-                                                SET Name = @name,
+                                                SET Name = @name
                                              
                                                
                                             WHERE Id = @id";
