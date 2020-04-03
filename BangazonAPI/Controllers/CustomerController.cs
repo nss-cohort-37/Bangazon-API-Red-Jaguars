@@ -130,7 +130,9 @@ namespace BangazonAPI.Controllers
                                 Products = new List<Product>()
                             };
                         }
-                            if (include == "products")
+                        if (include == "products")
+                        {
+                            if (include == "products" && !reader.IsDBNull(reader.GetOrdinal("ProductId")))
                             {
                                 customer.Products.Add(new Product()
                                 {
@@ -143,6 +145,7 @@ namespace BangazonAPI.Controllers
                                     CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId"))
                                 });
                             }
+                        }
                         }
                 
                 reader.Close();
