@@ -13,11 +13,11 @@ namespace BangazonAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class DepartmentController : Controller
+    public class DepartmentsController : Controller
     {
         private readonly IConfiguration _config;
 
-        public DepartmentController(IConfiguration config)
+        public DepartmentsController(IConfiguration config)
         {
             _config = config;
         }
@@ -67,7 +67,7 @@ namespace BangazonAPI.Controllers
         /// </summary>
         /// <param name="id">Gets department specified by id.</param>
         /// <returns></returns>
-        [HttpGet("{id}", Name = "GetDepartments")]
+        [HttpGet("{id}", Name = "GetDepartment")]
         public async Task<IActionResult> Get([FromRoute] int id)
         {
             using (SqlConnection conn = Connection)
@@ -118,7 +118,7 @@ namespace BangazonAPI.Controllers
 
                     int newId = (int)cmd.ExecuteScalar();
                     department.Id = newId;
-                    return CreatedAtRoute("GetDeparments", new { id = newId }, department);
+                    return CreatedAtRoute("GetDeparment", new { id = newId }, department);
                 }
             }
         }
@@ -138,52 +138,12 @@ namespace BangazonAPI.Controllers
                     conn.Open();
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"UPDATE Customer
+                        cmd.CommandText = @"UPDATE Department
                                             SET Name = @Name,
                                                 Budget = @Budget
                                             WHERE Id = @id";
                         cmd.Parameters.Add(new SqlParameter("@Name", department.Name));
                         cmd.Parameters.Add(new SqlParameter("@Budget", department.Budget));
-                        cmd.Parameters.Add(new SqlParameter("@id", id));
-
-                        int rowsAffected = cmd.ExecuteNonQuery();
-                        if (rowsAffected > 0)
-                        {
-                            return new StatusCodeResult(StatusCodes.Status204NoContent);
-                        }
-                        throw new Exception("No rows affected");
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                if (!DepartmentExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="id">Deletes department specified by id.</param>
-        /// <returns></returns>
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete([FromRoute] int id)
-        {
-            try
-            {
-                using (SqlConnection conn = Connection)
-                {
-                    conn.Open();
-                    using (SqlCommand cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandText = @"DELETE FROM Department WHERE Id = @id";
                         cmd.Parameters.Add(new SqlParameter("@id", id));
 
                         int rowsAffected = cmd.ExecuteNonQuery();
