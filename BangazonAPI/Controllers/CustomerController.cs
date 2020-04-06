@@ -31,14 +31,23 @@ namespace BangazonAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> Get([FromQuery] string q)
         {
             using (SqlConnection conn = Connection)
             {
                 conn.Open();
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "SELECT Id, FirstName, LastName, CreatedDate, Active, Address, City, State, Email, Phone FROM Customer";
+                    cmd.CommandText = @"SELECT Id, FirstName, LastName, CreatedDate, Active, Address, City, State, Email, Phone FROM Customer
+                                        WHERE 1=1";
+
+                    if (q != null)
+                    {
+                        cmd.CommandText += " AND FirstName LIKE @FirstName OR LastName LIKE @LastName";
+                        cmd.Parameters.Add(new SqlParameter("@FirstName", "%" + q + "%"));
+                        cmd.Parameters.Add(new SqlParameter("@LastName", "%" + q + "%"));
+                    }
+
                     SqlDataReader reader = cmd.ExecuteReader();
                     List<Customer> customers = new List<Customer>();
 
@@ -57,8 +66,11 @@ namespace BangazonAPI.Controllers
                             Email = reader.GetString(reader.GetOrdinal("Email")),
                             Phone = reader.GetString(reader.GetOrdinal("Phone"))
                         };
+                        if (customer.Active == true)
+                        {
 
-                        customers.Add(customer);
+                            customers.Add(customer);
+                        }
                     }
                     reader.Close();
 
@@ -68,7 +80,7 @@ namespace BangazonAPI.Controllers
         }
 
         [HttpGet("{id}", Name = "GetCustomer")]
-        public async Task<IActionResult> Get([FromRoute] int id)
+        public async Task<IActionResult> Get([FromRoute] int id, [FromQuery] string include)
         {
             using (SqlConnection conn = Connection)
             {
@@ -77,36 +89,72 @@ namespace BangazonAPI.Controllers
                 {
                     cmd.CommandText = @"
                         SELECT
-                            Id, FirstName, LastName, CreatedDate, Active, Address, City, State, Email, Phone
-                        FROM Customer
-                        WHERE Id = @id";
+                            c.Id AS CustomerIdNumber, c.FirstName, c.LastName, c.CreatedDate, c.Active, c.Address, c.City, c.State, c.Email, c.Phone";
+
+                    if (include == "products")
+                    {
+                        cmd.CommandText += ", p.Id as ProductId, p.ProductTypeId, p.Price, p.Title, p.Description, p.CustomerId, p.DateAdded";
+                    }
+
+                    cmd.CommandText += " FROM Customer c";
+
+                    if (include == "products")
+                    {
+                        cmd.CommandText += " LEFT JOIN Product p ON p.CustomerId = c.Id";
+                    }
+
+                    cmd.CommandText += " WHERE c.Id = @id";
+
+
                     cmd.Parameters.Add(new SqlParameter("@id", id));
                     SqlDataReader reader = cmd.ExecuteReader();
 
                     Customer customer = null;
 
-                    if (reader.Read())
+                    while (reader.Read())
                     {
-                        customer = new Customer
+                        if (customer == null)
                         {
-                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                            FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
-                            LastName = reader.GetString(reader.GetOrdinal("LastName")),
-                            CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-                            Active = reader.GetBoolean(reader.GetOrdinal("Active")),
-                            Address = reader.GetString(reader.GetOrdinal("Address")),
-                            City = reader.GetString(reader.GetOrdinal("City")),
-                            State = reader.GetString(reader.GetOrdinal("State")),
-                            Email = reader.GetString(reader.GetOrdinal("Email")),
-                            Phone = reader.GetString(reader.GetOrdinal("Phone"))
-                        };
-                    }
-                    reader.Close();
+                            customer = new Customer
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("CustomerIdNumber")),
+                                FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
+                                LastName = reader.GetString(reader.GetOrdinal("LastName")),
+                                CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
+                                Active = reader.GetBoolean(reader.GetOrdinal("Active")),
+                                Address = reader.GetString(reader.GetOrdinal("Address")),
+                                City = reader.GetString(reader.GetOrdinal("City")),
+                                State = reader.GetString(reader.GetOrdinal("State")),
+                                Email = reader.GetString(reader.GetOrdinal("Email")),
+                                Phone = reader.GetString(reader.GetOrdinal("Phone")),
+                                Products = new List<Product>()
+                            };
+                        }
+                        if (include == "products")
+                        {
+                            if (include == "products" && !reader.IsDBNull(reader.GetOrdinal("ProductId")))
+                            {
+                                customer.Products.Add(new Product()
+                                {
+                                    Id = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                                    Price = reader.GetDecimal(reader.GetOrdinal("Price")),
+                                    Title = reader.GetString(reader.GetOrdinal("Title")),
+                                    Description = reader.GetString(reader.GetOrdinal("Description")),
+                                    DateAdded = reader.GetDateTime(reader.GetOrdinal("DateAdded")),
+                                    ProductTypeId = reader.GetInt32(reader.GetOrdinal("ProductTypeId")),
+                                    CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId"))
+                                });
+                            }
+                        }
+                        }
+                
+                reader.Close();
 
-                    return Ok(customer);
-                }
+                return Ok(customer);
             }
         }
+    }
+
 
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] Customer customer)
@@ -119,9 +167,11 @@ namespace BangazonAPI.Controllers
                     cmd.CommandText = @"INSERT INTO Customer (FirstName, LastName, CreatedDate, Active, Address, City, State, Email, Phone)
                                         OUTPUT INSERTED.Id
                                         VALUES (@FirstName, @LastName, @CreatedDate, @Active, @Address, @City, @State, @Email, @Phone)";
+
+                    DateTime dateTimeVariable = DateTime.Now;
                     cmd.Parameters.Add(new SqlParameter("@FirstName", customer.FirstName));
                     cmd.Parameters.Add(new SqlParameter("@LastName", customer.LastName));
-                    cmd.Parameters.Add(new SqlParameter("@CreatedDate", customer.CreatedDate));
+                    cmd.Parameters.Add(new SqlParameter("@CreatedDate", dateTimeVariable));
                     cmd.Parameters.Add(new SqlParameter("@Active", customer.Active));
                     cmd.Parameters.Add(new SqlParameter("@Address", customer.Address));
                     cmd.Parameters.Add(new SqlParameter("@City", customer.City));
@@ -131,6 +181,7 @@ namespace BangazonAPI.Controllers
                     
                     int newId = (int)cmd.ExecuteScalar();
                     customer.Id = newId;
+                    customer.CreatedDate = dateTimeVariable;
                     return CreatedAtRoute("GetCustomer", new { id = newId }, customer);
                 }
             }
@@ -200,7 +251,10 @@ namespace BangazonAPI.Controllers
                     conn.Open();
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"DELETE FROM Customer WHERE Id = @id";
+                        cmd.CommandText = @"UPDATE Customer
+                                            SET Active = @Active
+                                            WHERE Id = @id";
+                        cmd.Parameters.Add(new SqlParameter("@Active", false));
                         cmd.Parameters.Add(new SqlParameter("@id", id));
 
                         int rowsAffected = cmd.ExecuteNonQuery();

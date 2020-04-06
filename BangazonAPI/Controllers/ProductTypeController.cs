@@ -14,85 +14,119 @@ namespace BangazonAPI.Controllers
     [ApiController]
     public class ProductTypeController : ControllerBase
     {
-            private readonly IConfiguration _config;
+        private readonly IConfiguration _config;
 
-            public ProductTypeController(IConfiguration config)
+        public ProductTypeController(IConfiguration config)
+        {
+            _config = config;
+        }
+
+        public SqlConnection Connection
+        {
+            get
             {
-                _config = config;
+                return new SqlConnection(_config.GetConnectionString("DefaultConnection"));
             }
+        }
 
-            public SqlConnection Connection
+        [HttpGet]
+        public async Task<IActionResult> Get()
+        {
+            using (SqlConnection conn = Connection)
             {
-                get
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
                 {
-                    return new SqlConnection(_config.GetConnectionString("DefaultConnection"));
-                }
-            }
-
-            [HttpGet]
-            public async Task<IActionResult> Get()
-            {
-                using (SqlConnection conn = Connection)
-                {
-                    conn.Open();
-                    using (SqlCommand cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandText = @"SELECT Id, Name
+                    cmd.CommandText = @"SELECT Id, Name
                         FROM ProductType";
-                        SqlDataReader reader = cmd.ExecuteReader();
-                        List<ProductType> productTypes = new List<ProductType>();
+                    SqlDataReader reader = cmd.ExecuteReader();
+                    List<ProductType> productTypes = new List<ProductType>();
 
-                        while (reader.Read())
+                    while (reader.Read())
+                    {
+                        ProductType productType = new ProductType
                         {
-                            ProductType productType = new ProductType
-                            {
-                                Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                                Name = reader.GetString(reader.GetOrdinal("Name")),
-                               
+                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                            Name = reader.GetString(reader.GetOrdinal("Name")),
 
 
-                            };
 
-                            productTypes.Add(productType);
-                        }
-                        reader.Close();
+                        };
 
-                        return Ok(productTypes);
+                        productTypes.Add(productType);
                     }
+                    reader.Close();
+
+                    return Ok(productTypes);
                 }
             }
-            [HttpGet("{id}", Name = "GetProductType")]
-            public async Task<IActionResult> Get([FromRoute] int id)
+        }
+        [HttpGet("{id}", Name = "GetProductType")]
+        public async Task<IActionResult> Get([FromRoute] int id, [FromQuery] string include)
+        {
+            using (SqlConnection conn = Connection)
             {
-                using (SqlConnection conn = Connection)
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
                 {
-                    conn.Open();
-                    using (SqlCommand cmd = conn.CreateCommand())
+                    cmd.CommandText = @"SELECT pt.Id AS ProductTypeId, pt.Name";
+                    if (include == "products")
                     {
-                        cmd.CommandText = @"SELECT Id, Name
-                        FROM ProductType
-                        WHERE Id=@id";
-                        cmd.Parameters.Add(new SqlParameter("@id", id));
-                        SqlDataReader reader = cmd.ExecuteReader();
+                        cmd.CommandText += ", p.Id as ProductId, p.ProductTypeId, p.Price, p.Title, p.Description, p.CustomerId, p.DateAdded";
+                    }
+                    cmd.CommandText += " FROM ProductType pt";
+                    if (include == "products")
+                    {
+                        cmd.CommandText += " LEFT JOIN Product p ON p.ProductTypeId = pt.Id";
+                    }
+                    cmd.CommandText += " WHERE pt.Id = @id";
 
-                        ProductType productType = null;
+                    cmd.Parameters.Add(new SqlParameter("@id", id));
+                    SqlDataReader reader = cmd.ExecuteReader();
 
-                        if (reader.Read())
+                    ProductType productType = null;
+
+                    while (reader.Read())
+                    {
+                        if (productType == null)
                         {
                             productType = new ProductType
                             {
-                                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                                Id = reader.GetInt32(reader.GetOrdinal("ProductTypeId")),
                                 Name = reader.GetString(reader.GetOrdinal("Name")),
-
-
+                                Products = new List<Product>()
                             };
                         }
+
+                        if (include == "products" && !reader.IsDBNull(reader.GetOrdinal("ProductId")))
+                        {
+
+                            productType.Products.Add(new Product()
+                            {
+                                Id = reader.GetInt32(reader.GetOrdinal("ProductId")),
+                                Price = reader.GetDecimal(reader.GetOrdinal("Price")),
+                                Title = reader.GetString(reader.GetOrdinal("Title")),
+                                Description = reader.GetString(reader.GetOrdinal("Description")),
+                                DateAdded = reader.GetDateTime(reader.GetOrdinal("DateAdded")),
+                                ProductTypeId= reader.GetInt32(reader.GetOrdinal("ProductTypeId")),
+                                CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId"))
+                            });
+                            
+                        }
+                    }
+
+
+
+
+
                         reader.Close();
 
                         return Ok(productType);
                     }
                 }
             }
+        
+            
             [HttpPost]
             public async Task<IActionResult> Post([FromBody] ProductType productType)
             {
@@ -111,7 +145,7 @@ namespace BangazonAPI.Controllers
 
                         int newId = (int)cmd.ExecuteScalar();
                         productType.Id = newId;
-                        return CreatedAtRoute("GetProduct", new { id = newId }, productType);
+                        return CreatedAtRoute("GetProductType", new { id = newId }, productType);
                     }
                 }
             }
@@ -157,40 +191,7 @@ namespace BangazonAPI.Controllers
                     }
                 }
             }
-            [HttpDelete("{id}")]
-            public async Task<IActionResult> Delete([FromRoute] int id)
-            {
-                try
-                {
-                    using (SqlConnection conn = Connection)
-                    {
-                        conn.Open();
-                        using (SqlCommand cmd = conn.CreateCommand())
-                        {
-                            cmd.CommandText = @"DELETE FROM ProductType WHERE Id = @id";
-                            cmd.Parameters.Add(new SqlParameter("@id", id));
-
-                            int rowsAffected = cmd.ExecuteNonQuery();
-                            if (rowsAffected > 0)
-                            {
-                                return new StatusCodeResult(StatusCodes.Status204NoContent);
-                            }
-                            throw new Exception("No rows affected");
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    if (!ProductTypeExists(id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-            }
+         
             private bool ProductTypeExists(int id)
             {
                 using (SqlConnection conn = Connection)
