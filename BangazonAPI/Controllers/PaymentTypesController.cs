@@ -58,7 +58,6 @@ namespace BangazonAPI.Controllers
                                 };
                                 if (paymentType.Active == true)
                                 {
-
                                     paymentTypes.Add(paymentType);
                                 }
                             }
