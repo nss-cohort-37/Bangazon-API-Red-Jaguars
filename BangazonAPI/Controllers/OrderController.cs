@@ -29,56 +29,7 @@ namespace BangazonAPI.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> Get()
-        {
-            using (SqlConnection conn = Connection)
-            {
-                conn.Open();
-                using (SqlCommand cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = @"SELECT o.Id AS OrderId, o.CustomerId, o.UserPaymentTypeId,
-                        p.ProductTypeId, p.CustomerId, p.Price, p.Description, p.Title, p.DateAdded, p.Id AS ProductId
-                        FROM [Order] o
-                        LEFT JOIN OrderProduct op ON op.OrderId = o.Id 
-                        LEFT JOIN Product p ON p.Id = op.ProductId";
-                    SqlDataReader reader = cmd.ExecuteReader();
-                    List<Order> orders = new List<Order>();
-
-                    while (reader.Read())
-                    {
-                        Order order = new Order
-                        {
-                            Id = reader.GetInt32(reader.GetOrdinal("OrderId")),
-                            CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId")),
-                            //UserPaymentTypeId = reader.GetInt32(reader.GetOrdinal("UserPaymentTypeId"))
-                            Products = new List<Product>()
-                            };
-                        order.Products.Add(new Product()
-                        {
-                            Id = reader.GetInt32(reader.GetOrdinal("ProductId")),
-                            Price = reader.GetDecimal(reader.GetOrdinal("Price")),
-                            Title = reader.GetString(reader.GetOrdinal("Title")),
-                            Description = reader.GetString(reader.GetOrdinal("Description")),
-                            DateAdded = reader.GetDateTime(reader.GetOrdinal("DateAdded")),
-                            ProductTypeId = reader.GetInt32(reader.GetOrdinal("ProductTypeId")),
-                            CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId"))
-                        });
-
-
-
-                        
-                        if (!reader.IsDBNull(reader.GetOrdinal("UserPaymentTypeId"))) {
-                            order.UserPaymentTypeId = reader.GetInt32(reader.GetOrdinal("UserPaymentTypeId"));
-                        }
-                        orders.Add(order);
-                    }
-                    reader.Close();
-
-                    return Ok(orders);
-                }
-            }
-        }
+       
         [HttpGet("{id}", Name = "GetOrder")]
         public async Task<IActionResult> Get([FromRoute] int id)
         {
@@ -138,6 +89,56 @@ namespace BangazonAPI.Controllers
                 }
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetOrdersByCustomerId([FromQuery] int? customerId)
+        {
+            using (SqlConnection conn = Connection)
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT o.Id, o.CustomerId, o.UserPaymentTypeId
+                            FROM [Order] o
+                            WHERE 1 = 1 AND UserPaymentTypeId IS NOT Null";
+
+                    if (customerId != null)
+                    {
+                        cmd.CommandText += " AND CustomerId = @CustomerId";
+                        cmd.Parameters.Add(new SqlParameter("@CustomerId", customerId));
+                    }
+
+                    SqlDataReader reader = cmd.ExecuteReader();
+
+                    Order order = null;
+
+                    List<Order> Orders = new List<Order>();
+
+                    while (reader.Read())
+                    {
+
+
+                        order = new Order
+                        {
+                            Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                            CustomerId = reader.GetInt32(reader.GetOrdinal("CustomerId")),
+                            Products = new List<Product>()
+                        };
+                        Orders.Add(order);
+                    }
+
+                   
+                
+
+                
+
+                reader.Close();
+
+                return Ok(Orders);
+            }
+            }
+        }
+
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] Order order)
         {
